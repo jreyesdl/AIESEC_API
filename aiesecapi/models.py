@@ -2,6 +2,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import endpoints
 from google.appengine.ext import ndb
 from google.appengine.ext import blobstore
+from google.appengine.datastore.datastore_query import Cursor
 from google.appengine.ext.webapp import blobstore_handlers
 from endpoints_proto_datastore.ndb import EndpointsModel
 
@@ -76,6 +77,20 @@ class Post(EndpointsModel):
             memcache.set(key,posts)
     
         return posts
+
+    #TIMELINE WITH CURSORS FOR LOAD MORE RESULTS BUTTON
+    @staticmethod
+    def timeline(cursor):
+        nxt = None
+        curs = Cursor(urlsafe=cursor)
+        posts, next_curs, more = Post.query().fetch_page(1,start_cursor=curs)
+      
+        posts = list(posts)
+
+        if more and next_curs:
+            nxt = next_curs.urlsafe()
+
+        return posts,nxt
     
 class Comment(EndpointsModel):
     text = ndb.StringProperty()

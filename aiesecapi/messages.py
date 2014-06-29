@@ -12,6 +12,9 @@ class EmaiRequest(messages.Message):
     
 class PostRequest(messages.Message):
     key = messages.StringField(1)
+ 
+class TokenRequest(messages.Message):
+    PageToken = messages.StringField(1)
 
 class PostResponse(messages.Message):
     title = messages.StringField(1)
@@ -20,6 +23,8 @@ class PostResponse(messages.Message):
     ownerNickName = messages.StringField(4)
     image = messages.StringField(5)
     date = messages.StringField(6)
+   
 
 class TimelineResponse(messages.Message):
     items = messages.MessageField(PostResponse, 1, repeated=True)
+    next = messages.StringField(7)

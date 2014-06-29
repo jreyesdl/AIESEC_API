@@ -16,6 +16,7 @@ from messages import EmaiRequest
 from messages import PostRequest
 from messages import PostResponse
 from messages import TimelineResponse
+from messages import TokenRequest
 
 #Global functions
 from models import User 
@@ -72,31 +73,35 @@ class UserApi(remote.Service):
                  name = 'post.insert',
                  path = 'post')
     def post_insert(self, _post):
-        owner = User.get_userById(_post.owner.user_id)
-        post_key = ndb.Key('AIESEC','Post')
-        user_key = ndb.Key('AIESEC', 'User')
+        try:
+            owner = User.get_userById(_post.owner.user_id)
+            post_key = ndb.Key('AIESEC','Post')
+            user_key = ndb.Key('AIESEC', 'User')
         
-        if owner:
+            if owner:
             
-            key = uploadHandler.uploadImage(_post.image)
-            url = get_serving_url(key)
+                key = uploadHandler.uploadImage(_post.image)
+                url = get_serving_url(key)
             
-            post_ = Post(parent = post_key, title = _post.title,
-                     text = _post.text, blob_key = key, blob_url = url,
-                     owner = User(parent = user_key,user_id = owner[0].user_id, email = owner[0].email, user = owner[0].user,
-                                  university = owner[0].university, state = owner[0].state)
-                      )
-            post_.put()
-            Post.list_(True)
-            entityKey = str(post_.key.id())
-            _post.eID = entityKey
-            return _post
-        else:
+                post_ = Post(parent = post_key, title = _post.title,
+                            text = _post.text, blob_key = key, blob_url = url,
+                            owner = User(parent = user_key,user_id = owner[0].user_id, 
+                                         email = owner[0].email, user = owner[0].user,
+                                         university = owner[0].university, state = owner[0].state))
+
+                post_.put()
+                Post.list_(True)
+                entityKey = str(post_.key.id())
+                _post.eID = entityKey
+                return _post
+            else:
+                raise endpoints.InternalServerErrorException()
+        except:
             raise endpoints.InternalServerErrorException()
     
     #LIST ALL THE POST        
     @endpoints.method(message_types.VoidMessage,TimelineResponse,
-                      name = 'post.timeline2',
+                      name = 'post.timeline',
                       path = 'post/timeline',
                       http_method='GET')
     def post_timeline(self,unused_request):
@@ -110,6 +115,31 @@ class UserApi(remote.Service):
 
         return TimelineResponse(items = post)
     
+
+    #LIST ALL THE POST WITH NEXT CURSOR  
+    @endpoints.method(TokenRequest,TimelineResponse,
+                      name = 'post.tml',
+                      path = 'post/tml',
+                      http_method='GET')
+    def post_timeline(self,request):
+        post = []
+        next = 0
+        posts,next = Post.timeline(request.PageToken)
+        logging.debug('PAGE TOKEN: %s' %request.PageToken)
+        p = [x[1] for x in enumerate(posts)]
+        for p in p:
+           
+            post.append(PostResponse(title=p.title,text=p.text,ownerEmail = p.owner.email, ownerNickName = p.owner.user,
+                                image=p.blob_url))
+
+        return TimelineResponse(items = post,next = next)
+
+    @Post.query_method(query_fields=('limit', 'order', 'pageToken'),
+                        path='mymodels', name='mymodel.list')
+    def MyModelList(self, query):
+        return query
+
+
     #GET A POST BY ITS ID 
     @endpoints.method(PostRequest,PostResponse,
                  http_method = 'POST',
@@ -119,7 +149,6 @@ class UserApi(remote.Service):
         logging.debug('Key: %s' %request.key)
         posts = Post.list_()
         p = [x[1] for x in enumerate(posts) if str(x[1].key.id()) == request.key]
-        logging.debug('Post: %s' %p)
         if p:
             return PostResponse(title=p[0].title,text=p[0].text,ownerEmail = p[0].owner.email, ownerNickName = p[0].owner.user,
                                 image=p[0].blob_url)
