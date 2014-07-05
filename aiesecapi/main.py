@@ -17,6 +17,9 @@ from messages import PostRequest
 from messages import PostResponse
 from messages import TimelineResponse
 from messages import TokenRequest
+from messages import PostIDrequest
+from messages import CommentResponse
+from messages import CommentListResponse
 
 #Global functions
 from models import User 
@@ -99,27 +102,27 @@ class UserApi(remote.Service):
         except:
             raise endpoints.InternalServerErrorException()
     
-    #LIST ALL THE POST        
-    @endpoints.method(message_types.VoidMessage,TimelineResponse,
-                      name = 'post.timeline',
-                      path = 'post/timeline',
-                      http_method='GET')
-    def post_timeline(self,unused_request):
-        post = []
-        posts = Post.list_()
-        p = [x[1] for x in enumerate(posts)]
-        for p in p:
-            logging.debug('Post %s' %p)
-            post.append(PostResponse(title=p.title,text=p.text,ownerEmail = p.owner.email, ownerNickName = p.owner.user,
-                                image=p.blob_url))
+     #METHOD FOR INSERT COMMENTS
+    @Comment.method(http_method = 'POST',
+                 name = 'comment.insert',
+                 path = 'comment')
+    def comment_insert(self,comment):
+        comment_key = ndb.Key('AIESEC','Comment')
+        post_key = ndb.Key('AIESEC','Post')
+        user_key = ndb.Key('AIESEC','User')
 
-        return TimelineResponse(items = post)
-    
+        comment = Comment(parent = comment_key, text = comment.text, 
+                          post = Post(parent = post_key, title = comment.post.title, eID = comment.post.eID),
+                          owner = User(parent = user_key, user_id = comment.owner.user_id, email = comment.owner.email)
+                          )
+        comment.put()
+        return comment
 
+  
     #LIST ALL THE POST WITH NEXT CURSOR  
     @endpoints.method(TokenRequest,TimelineResponse,
-                      name = 'post.tml',
-                      path = 'post/tml',
+                      name = 'post.timeline',
+                      path = 'post/timeline',
                       http_method='GET')
     def post_timeline(self,request):
         post = []
@@ -130,14 +133,24 @@ class UserApi(remote.Service):
         for p in p:
            
             post.append(PostResponse(title=p.title,text=p.text,ownerEmail = p.owner.email, ownerNickName = p.owner.user,
-                                image=p.blob_url))
+                                image=p.blob_url,date = (p.date).strftime('%d/%m/%Y'),key = str(p.key.id())))
 
         return TimelineResponse(items = post,next = next)
 
-    @Post.query_method(query_fields=('limit', 'order', 'pageToken'),
-                        path='mymodels', name='mymodel.list')
-    def MyModelList(self, query):
-        return query
+
+    @endpoints.method(PostIDrequest,CommentListResponse,
+                      name = 'comment.list',
+                      path = 'comment/list',
+                      http_method = 'GET')
+    def comment_list(self,request):
+        comment = []
+        next = 0
+        comments, next = Comment.comments(request.PageToken, request.postID)
+        c = [x[1] for x in enumerate(comments)]
+        for c in c:
+            comment.append(CommentResponse(text = c.text, date = (c.date).strftime('%d/%m/%Y'), owner = c.owner.email))
+
+        return CommentListResponse(items = comment, next = next)
 
 
     #GET A POST BY ITS ID 
@@ -151,17 +164,10 @@ class UserApi(remote.Service):
         p = [x[1] for x in enumerate(posts) if str(x[1].key.id()) == request.key]
         if p:
             return PostResponse(title=p[0].title,text=p[0].text,ownerEmail = p[0].owner.email, ownerNickName = p[0].owner.user,
-                                image=p[0].blob_url)
+                                image=p[0].blob_url,date = (p[0].date).strftime('%d/%m/%Y'))
         else:
             return PostResponse()
-        
-    #METHOD FOR INSERT COMMENTS
-    @Comment.method(http_method = 'POST',
-                 name = 'comment.insert',
-                 path = 'comment')
-    def comment_insert():
-        pass
-    
+         
     #SIGNIN METHOD
     @endpoints.method(EmaiRequest,LoginResponse,
                  path = 'login',

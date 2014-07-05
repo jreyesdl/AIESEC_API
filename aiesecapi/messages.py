@@ -23,8 +23,21 @@ class PostResponse(messages.Message):
     ownerNickName = messages.StringField(4)
     image = messages.StringField(5)
     date = messages.StringField(6)
+    key = messages.StringField(7)
    
-
 class TimelineResponse(messages.Message):
     items = messages.MessageField(PostResponse, 1, repeated=True)
-    next = messages.StringField(7)
+    next = messages.StringField(2)
+
+class CommentResponse(messages.Message):
+    text = messages.StringField(1)
+    date = messages.StringField(2)
+    owner = messages.StringField(3)
+
+class CommentListResponse(messages.Message):
+    items = messages.MessageField(CommentResponse, 1, repeated=True)
+    next = messages.StringField(2)
+
+class PostIDrequest(messages.Message):
+    postID = messages.StringField(1)
+    PageToken = messages.StringField(2)

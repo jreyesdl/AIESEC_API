@@ -83,7 +83,7 @@ class Post(EndpointsModel):
     def timeline(cursor):
         nxt = None
         curs = Cursor(urlsafe=cursor)
-        posts, next_curs, more = Post.query().fetch_page(1,start_cursor=curs)
+        posts, next_curs, more = Post.query().order(-Post.date).fetch_page(5,start_cursor=curs)
       
         posts = list(posts)
 
@@ -94,4 +94,19 @@ class Post(EndpointsModel):
     
 class Comment(EndpointsModel):
     text = ndb.StringProperty()
+    date  = ndb.DateTimeProperty(auto_now_add=True)
     post = ndb.StructuredProperty(Post)
+    owner = ndb.StructuredProperty(User)
+
+    @staticmethod
+    def comments(cursor, postID):
+            nxt = None
+            curs = Cursor(urlsafe=cursor)
+            comment, next_curs, more = Comment.query(Comment.post.eID == postID).order(-Comment.date).fetch_page(5,start_cursor=curs)
+
+            comment = list(comment)
+
+            if more and next_curs:
+                nxt = next_curs.urlsafe()
+                
+            return comment, nxt 
